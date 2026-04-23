@@ -152,6 +152,10 @@ jobs:
     name: security-scan
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: read
+      packages: read
+      security-events: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
