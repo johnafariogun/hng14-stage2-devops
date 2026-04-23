@@ -9,7 +9,7 @@ on:
     branches:
       - main
       - develop
-      
+
 env:
   REGISTRY: ghcr.io
   IMAGE_REGISTRY_PATH: ghcr.io/${{ github.repository_owner }}
@@ -76,7 +76,7 @@ jobs:
 
       - name: Run API tests with pytest
         run: |
-          cd api
+          cd api/tests
           pytest test_main.py -v --cov=. --cov-report=xml --cov-report=html --cov-report=term
 
       - name: Upload coverage reports
