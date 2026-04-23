@@ -148,7 +148,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_REGISTRY_PATH }}/frontend:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_REGISTRY_PATH }}/frontend:buildcache,mode=max
 
-  security:
+  security-scan:
     name: security-scan
     runs-on: ubuntu-latest
     needs: build
