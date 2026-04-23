@@ -1,34 +1,34 @@
-# 1. Build stage
-FROM node:18-alpine AS builder
-
-WORKDIR /build
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
-
-# 2. Production stage
-FROM node:18-alpine
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# The 'node' user and group (UID/GID 1000) already exist in the base image.
-# We simply set permissions for the app directory for the existing 'node' user.
-RUN chown -R node:node /app
+COPY package.json package-lock.json* ./
 
-# Copy necessary files from builder
-COPY --from=builder --chown=node:node /build/node_modules ./node_modules
-COPY --chown=node:node app.js .
-COPY --chown=node:node views ./views
+RUN npm install
 
-ENV NODE_ENV=production \
-    PORT=3000 \
-    API_URL=http://api:8000
+COPY . .
 
-# Use the existing non-root 'node' user
-USER node
+RUN rm -f .env
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+RUN addgroup -S nodejs -g 1001 && \
+    adduser -S nodejs -u 1001 -G nodejs -h /app -s /bin/sh
+
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/app.js ./
+COPY --from=builder --chown=nodejs:nodejs /app/views ./views
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))" || exit 1
 
 CMD ["node", "app.js"]

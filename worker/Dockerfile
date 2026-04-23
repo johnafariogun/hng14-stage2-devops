@@ -1,40 +1,42 @@
-# Multi-stage build for Worker service
-FROM python:3.11-slim as builder
-
-WORKDIR /build
-
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
-
-# Production stage
-FROM python:3.11-slim
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy only necessary files from builder
-COPY --from=builder /root/.local /home/appuser/.local
-COPY worker.py .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Set environment variables
-ENV PATH=/home/appuser/.local/bin:$PATH \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    REDIS_HOST=redis \
-    REDIS_PORT=6379
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Change ownership of files
-RUN chown -R appuser:appuser /app
 
-# Switch to non-root user
+FROM python:3.11-slim AS runner
+
+RUN apt-get update && apt-get install -y --no-install-recommends procps && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r appgroup && useradd -r -g appgroup -d /app appuser
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY worker.py ./
+COPY requirements.txt ./
+
+RUN rm -f .env
+
+RUN chown -R appuser:appgroup /app
+
 USER appuser
 
-# Health check - verify Redis connectivity
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
   CMD python -c "import redis; redis.Redis(host='$REDIS_HOST', port=int('$REDIS_PORT'), decode_responses=True).ping()" || exit 1
 
-# Run the worker
+
 CMD ["python", "worker.py"]
