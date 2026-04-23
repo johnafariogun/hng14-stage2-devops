@@ -195,7 +195,10 @@ jobs:
   integration:
     name: Integration Test
     runs-on: ubuntu-latest
-    needs: security
+    needs: security-scan
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
