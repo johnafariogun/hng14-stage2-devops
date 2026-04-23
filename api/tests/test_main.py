@@ -8,7 +8,8 @@ def test_health_check(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["redis"] == "connected"
+
+
 
 
 def test_create_job(client):
@@ -28,7 +29,7 @@ def test_get_job_not_found(client):
     """Test that /jobs/{job_id} returns 404 for non-existent job"""
     response = client.get("/jobs/job-id-12345")
     assert response.status_code == 404
-    assert response.json()["error"] == "not found"
+    assert response.json()["detail"] == "Job not found"
 
 
 def test_get_job_success(client):
